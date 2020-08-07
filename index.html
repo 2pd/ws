@@ -96,11 +96,13 @@
     var streams = {
       'spot': [
         'bnbusdt@aggTrade', 
-        'bnbusdt@trade'
+        'bnbusdt@trade',
+        'bnbusdt@depth'
       ],
       'futures': [
         'bnbusdt@markPrice@1s', 
-        'bnbusdt@bookTicker'
+        'bnbusdt@bookTicker',
+        'bnbusdt@depth'
       ],
       'delivery': [
         'btcusd@indexPrice',
@@ -152,7 +154,6 @@
             if (event == 'message') {
               this.loading = false
             }
-
 
             this.message.unshift(msg)
             // keep latest 10 records
