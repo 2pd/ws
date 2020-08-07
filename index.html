@@ -1,0 +1,183 @@
+<html>
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="main.css">
+  <body>
+    
+    <div id="app">
+      <header class="card fluid">
+        <h1>Binance Websocket Demo</h1>
+      </header>
+      <div class="card fluid questions">
+        <div class="section">
+          
+            <legend class="doc"></legend>
+            <div class="row responsive-label">
+              <div class="col-sm-12 col-md-1">
+                <label for="sf1-text" class="doc">Product</label>
+              </div>
+              <div class="col-sm-12 col-md-2">
+                <input type="radio" id="spot" value="spot" v-model="product">
+                <label for="spot">Spot</label>
+              </div>
+              <div class="col-sm-12 col-md-2">
+                <input type="radio" id="futures" value="futures" v-model="product">
+                <label for="futures">Futures</label>
+              </div>
+              <div class="col-sm-12 col-md-1">
+                <input type="radio" id="delivery" value="delivery" v-model="product">
+                <label for="delivery">Delivery</label>
+              </div>
+            </div>
+            <div class="row responsive-label">
+              <div class="col-sm-12 col-md-1">
+                <label for="sf1-text" class="doc">Environment</label>
+              </div>
+              <div class="col-sm-12 col-md-2">
+                <input type="radio" id="production" value="production" v-model="mode">
+                <label for="production">Production</label>
+              </div>
+              <div class="col-sm-12 col-md-4">
+                <input type="radio" id="testnet" value="testnet" v-model="mode">
+                <label for="testnet">Testnet <mark>Testnet may have no change</mark></label>
+              </div>
+            </div>
+            <div class="row responsive-label">
+              <div class="col-sm-12 col-md-1">
+                <label for="sf1-text" class="doc">Stream</label>
+              </div>
+              <div class="col-sm-12 col-md">
+                <select v-model="selectedStream" style="width: 20%;" v-show="customStream == ''">
+                  
+                  <option v-for="stream in productStreams" v-bind:value="stream" >
+                    {{ stream }}
+                  </option>
+                </select>
+                <input type="text" v-model="customStream" placeholder="stream name, e.g. bnbusdt@depth" style="width: 50%;">
+              </div>
+            </div>
+            <div class="row responsive-label">
+              <div class="col-sm-12 col-md-3">
+                <button v-on:click="connect">Connect</button>
+                <span class="spinner primary" v-show="loading == true"></span>
+              </div>
+            </div>
+        </div>
+      </div>
+      <div class="card fluid">
+        <div class="section">
+          <div>
+            {{ product }} on {{ mode }} URL: {{ url }}
+          </div>
+        </div>
+      </div>
+      <div class="card fluid">
+        <div class="section">
+          {{ serializeMessage }}
+
+          <div v-show="error != ''" class="error-message">
+            <mark class="secondary">{{ error }}</mark>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+  <script>
+    var urls = {
+      'spot_production': 'wss://stream.binance.com:9443/ws/',
+      'futures_production': 'wss://fstream.binance.com/ws/',
+      'delivery_production': 'wss://dstream.binance.com/ws/',
+      'spot_testnet': 'wss://testnet.binance.vision/ws/',
+      'futures_testnet': 'wss://stream.binancefuture.com/ws/',
+      'delivery_testnet': 'wss://stream.binancefuture.com/ws/'
+    }
+
+    var streams = {
+      'spot': [
+        'bnbusdt@aggTrade', 
+        'bnbusdt@trade'
+      ],
+      'futures': [
+        'bnbusdt@markPrice@1s', 
+        'bnbusdt@bookTicker'
+      ],
+      'delivery': [
+        'btcusd@indexPrice',
+        'btcusd_201225@kline_1h'
+      ]
+    }
+
+    function connect_server(url, callback) {
+      ws = new WebSocket(url);
+
+      ws.onopen = function () {
+        callback('open', "connected to " + url)
+      };
+
+      ws.onmessage = function (message) {
+        callback('message', JSON.parse(message.data))
+      };
+
+      ws.onclose = function () {
+        console.log('Websocket connection closed');
+      };
+    }
+
+    var app = new Vue({
+      el: '#app',
+      data: {
+        message: [],
+        error: '',
+        product: 'spot',
+        mode: 'production',
+        customStream: '',
+        selectedStream: '',
+        loading: false
+      },
+      methods: {
+        connect: function() {
+
+          // validate stream
+          if (this.selectedStream == '' ) {
+            this.error  = 'Please specfic stream name'
+            return
+          }
+          connect_server(this.url, function(event, msg){
+
+            if (event == 'open') {
+              this.loading = true
+            }
+
+            if (event == 'message') {
+              this.loading = false
+            }
+
+
+            this.message.unshift(msg)
+            // keep latest 10 records
+            this.message = this.message.slice(0, 30)
+          }.bind(this))
+        },
+        with_stream: function(stream) {
+          return this.url + stream
+        }
+      },
+      computed: {
+        url: function() {
+          var theStream = this.customStream || this.selectedStream
+         return urls[this.product + '_' + this.mode] + theStream
+        },
+        serializeMessage: function() {
+          if (this.message.length == 0) {
+            return ''
+          }
+          return JSON.stringify(this.message)
+        },
+        productStreams: function() {
+          return streams[this.product]
+        }
+      }
+    })
+  </script>
+</html>
