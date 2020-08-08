@@ -58,9 +58,17 @@
               </div>
             </div>
             <div class="row responsive-label">
-              <div class="col-sm-12 col-md-3">
+              <div class="col-sm-12 col-md-2">
                 <button v-on:click="connect">Connect</button>
                 <span class="spinner primary" v-show="loading == true"></span>
+              </div>
+              <div class="col-sm-12 col-md-2" v-show="wsConnection != null">
+                <button v-on:click="disconnect">Disconnect</button>
+              </div>
+              <div class="col-sm-12 col-md-4">
+                <div v-show="error != ''" class="error-message">
+                  <mark class="secondary">{{ error }}</mark>
+                </div>
               </div>
             </div>
         </div>
@@ -75,10 +83,6 @@
       <div class="card fluid">
         <div class="section">
           {{ serializeMessage }}
-
-          <div v-show="error != ''" class="error-message">
-            <mark class="secondary">{{ error }}</mark>
-          </div>
         </div>
       </div>
     </div>
@@ -114,15 +118,15 @@
       ws = new WebSocket(url);
 
       ws.onopen = function () {
-        callback('open', "connected to " + url)
+        callback(ws, 'open', "connected to " + url)
       };
 
       ws.onmessage = function (message) {
-        callback('message', JSON.parse(message.data))
+        callback(ws, 'message', JSON.parse(message.data))
       };
 
       ws.onclose = function () {
-        console.log('Websocket connection closed');
+        callback(null, 'close', 'Websocket connection closed')
       };
     }
 
@@ -135,21 +139,39 @@
         mode: 'production',
         customStream: '',
         selectedStream: '',
-        loading: false
+        loading: false,
+        wsConnection: null
       },
       methods: {
+        disconnect: function() {
+          if (this.wsConnection == null) {
+            this.error = "Websocket Server is not connected!"
+            return
+          }
+          this.wsConnection.close()
+        },
         connect: function() {
+
+          if (this.wsConnection) {
+              this.error  = 'already connected!'
+              return
+          }
 
           // validate stream
           if (this.selectedStream == '' && this.customStream == '' ) {
             this.error  = 'Please specfic stream name'
             return
           }
-          connect_server(this.url, function(event, msg){
+          connect_server(this.url, function(ws, event, msg) {
+
+            this.error = ''
 
             if (event == 'open') {
+              this.wsConnection = ws
               this.loading = true
             }
+
+            
 
             if (event == 'message') {
               this.loading = false
@@ -158,6 +180,13 @@
             this.message.unshift(msg)
             // keep latest 10 records
             this.message = this.message.slice(0, 30)
+
+            // when receive close message from server
+            if (event == 'close') {
+              this.wsConnection = null
+              this.message = [msg]
+              return
+            }
           }.bind(this))
         },
         with_stream: function(stream) {
