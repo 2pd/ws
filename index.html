@@ -141,7 +141,7 @@
         connect: function() {
 
           // validate stream
-          if (this.selectedStream == '' ) {
+          if (this.selectedStream == '' && this.customStream == '' ) {
             this.error  = 'Please specfic stream name'
             return
           }
